@@ -42,9 +42,12 @@ python -m pip install -r backend/requirements.txt
 
 3. Configure suas variáveis de ambiente
 
-No arquivo .env dentro de /backend, adicione a sua API_KEY:
+Crie um arquivo .env dentro de /backend, com a estrutura abaixo:
 
 GROQ_API_KEY=CHAVE_AQUI
+CHROMA_PERSIST_DIR=./chroma_db
+EMBEDDING_MODEL=all-MiniLM-L6-v2
+LLM_MODEL=llama-3.3-70b-versatile
 
 4. Inicie o servidor backend
 uvicorn backend.app:app --port 8000
@@ -117,3 +120,4 @@ Respostas em tempo real usando Groq LLM
 
 
 Layout responsivo
+
