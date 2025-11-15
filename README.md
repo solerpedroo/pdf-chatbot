@@ -61,16 +61,27 @@ Você pode abrir direto no navegador
 
 📁 Estrutura do Projeto
 pdf-chatbot/
+
 ├── backend/
+
 │   ├── app.py              # API principal (FastAPI)
+
 │   ├── services/
+
 │   │   └── pdf_reader.py   # Lógica de leitura/análise de PDFs
+
 │   ├── .env                # Variáveis de ambiente
+
 │   └── requirements.txt    # Dependências Python
+
 │
+
 ├── frontend/
+
 │   ├── index.html          # Interface do usuário
+
 │
+
 └── README.md
 
 🎯 Funcionalidades
@@ -103,5 +114,6 @@ UI limpa e objetiva
 Fluxo rápido: upload → análise → perguntas
 
 Respostas em tempo real usando Groq LLM
+
 
 Layout responsivo
