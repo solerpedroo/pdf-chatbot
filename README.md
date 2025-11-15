@@ -45,8 +45,11 @@ python -m pip install -r backend/requirements.txt
 Crie um arquivo .env dentro de /backend, com a estrutura abaixo:
 
 GROQ_API_KEY=CHAVE_AQUI
+
 CHROMA_PERSIST_DIR=./chroma_db
+
 EMBEDDING_MODEL=all-MiniLM-L6-v2
+
 LLM_MODEL=llama-3.3-70b-versatile
 
 4. Inicie o servidor backend
@@ -120,4 +123,5 @@ Respostas em tempo real usando Groq LLM
 
 
 Layout responsivo
+
 
