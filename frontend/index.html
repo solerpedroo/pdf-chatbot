@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PDF Chatbot RAG</title>
+  <!-- Biblioteca para renderizar Markdown -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #bbe1ff 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 900px;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .header p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+
+    .content {
+      padding: 30px;
+    }
+
+    .upload-section {
+      background: #f8f9fa;
+      border-radius: 12px;
+      padding: 25px;
+      margin-bottom: 25px;
+      border: 2px dashed #d1d5db;
+      transition: all 0.3s ease;
+    }
+
+    .upload-section:hover {
+      border-color: #667eea;
+      background: #f3f4f6;
+    }
+
+    .upload-section.dragging {
+      border-color: #667eea;
+      background: #eef2ff;
+    }
+
+    .file-input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+
+    .file-input-label {
+      flex: 1;
+      padding: 15px;
+      background: white;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: all 0.2s ease;
+    }
+
+    .file-input-label:hover {
+      border-color: #667eea;
+      background: #fafafa;
+    }
+
+    .file-input-label svg {
+      width: 20px;
+      height: 20px;
+      color: #667eea;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .file-name {
+      color: #6b7280;
+      font-size: 14px;
+    }
+
+    .file-name.selected {
+      color: #667eea;
+      font-weight: 500;
+    }
+
+    button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .chat-section {
+      background: #f8f9fa;
+      border-radius: 12px;
+      padding: 25px;
+    }
+
+    .chat-history {
+      max-height: 400px;
+      overflow-y: auto;
+      margin-bottom: 20px;
+      padding-right: 10px;
+    }
+
+    .chat-history::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .chat-history::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 10px;
+    }
+
+    .chat-history::-webkit-scrollbar-thumb {
+      background: #667eea;
+      border-radius: 10px;
+    }
+
+    .message {
+      margin-bottom: 15px;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .message.user {
+      text-align: right;
+    }
+
+    .message-content {
+      display: inline-block;
+      padding: 12px 18px;
+      border-radius: 12px;
+      max-width: 80%;
+      text-align: left;
+    }
+
+    .message.user .message-content {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .message.bot .message-content {
+      background: white;
+      color: #1f2937;
+      border: 1px solid #e5e7eb;
+    }
+
+    /* Estilos para Markdown nas mensagens do bot */
+    .message.bot .message-content h1,
+    .message.bot .message-content h2,
+    .message.bot .message-content h3 {
+      margin-top: 12px;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #1f2937;
+    }
+
+    .message.bot .message-content h1 { font-size: 1.5em; }
+    .message.bot .message-content h2 { font-size: 1.3em; }
+    .message.bot .message-content h3 { font-size: 1.1em; }
+
+    .message.bot .message-content p {
+      margin-bottom: 10px;
+      line-height: 1.6;
+    }
+
+    .message.bot .message-content ul,
+    .message.bot .message-content ol {
+      margin: 10px 0;
+      padding-left: 25px;
+    }
+
+    .message.bot .message-content li {
+      margin-bottom: 6px;
+      line-height: 1.5;
+    }
+
+    .message.bot .message-content strong {
+      font-weight: 600;
+      color: #667eea;
+    }
+
+    .message.bot .message-content em {
+      font-style: italic;
+      color: #4b5563;
+    }
+
+    .message.bot .message-content code {
+      background: #f3f4f6;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9em;
+      color: #dc2626;
+    }
+
+    .message.bot .message-content pre {
+      background: #1f2937;
+      color: #f3f4f6;
+      padding: 12px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 10px 0;
+    }
+
+    .message.bot .message-content pre code {
+      background: none;
+      color: inherit;
+      padding: 0;
+    }
+
+    .message.bot .message-content blockquote {
+      border-left: 4px solid #667eea;
+      padding-left: 15px;
+      margin: 10px 0;
+      color: #4b5563;
+      font-style: italic;
+    }
+
+    .message.bot .message-content hr {
+      border: none;
+      border-top: 1px solid #e5e7eb;
+      margin: 15px 0;
+    }
+
+    .message.bot .message-content a {
+      color: #667eea;
+      text-decoration: underline;
+    }
+
+    .message.bot .message-content table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 10px 0;
+    }
+
+    .message.bot .message-content th,
+    .message.bot .message-content td {
+      border: 1px solid #e5e7eb;
+      padding: 8px;
+      text-align: left;
+    }
+
+    .message.bot .message-content th {
+      background: #f3f4f6;
+      font-weight: 600;
+    }
+
+    .input-wrapper {
+      display: flex;
+      gap: 10px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 14px 18px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 15px;
+      transition: all 0.2s ease;
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .status {
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 15px;
+      font-size: 14px;
+      display: none;
+    }
+
+    .status.success {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #6ee7b7;
+      display: block;
+    }
+
+    .status.error {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+      display: block;
+    }
+
+    .status.info {
+      background: #dbeafe;
+      color: #1e40af;
+      border: 1px solid #93c5fd;
+      display: block;
+    }
+
+    .loading {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #9ca3af;
+    }
+
+    .empty-state svg {
+      width: 64px;
+      height: 64px;
+      margin-bottom: 15px;
+      opacity: 0.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>PDF Chatbot RAG</h1>
+      <p>Faça upload de um PDF e converse com o conteúdo usando IA</p>
+    </div>
+
+    <div class="content">
+      <div class="upload-section" id="uploadSection">
+        <div class="file-input-wrapper">
+          <label class="file-input-label" for="fileInput">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+            <span class="file-name" id="fileName">Escolher arquivo PDF</span>
+          </label>
+          <input type="file" id="fileInput" accept="application/pdf" />
+          <button class="btn-primary" id="uploadBtn">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+            </svg>
+            Upload
+          </button>
+        </div>
+        <div class="status" id="uploadStatus"></div>
+      </div>
+
+      <div class="chat-section">
+        <div class="chat-history" id="chatHistory">
+          <div class="empty-state">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+            </svg>
+            <p>Faça upload de um PDF para começar a conversa</p>
+          </div>
+        </div>
+
+        <div class="input-wrapper">
+          <input type="text" id="questionInput" placeholder="Faça sua pergunta sobre o PDF..." disabled />
+          <button class="btn-primary" id="askBtn" disabled>
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+            </svg>
+            Enviar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const fileName = document.getElementById('fileName');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const uploadStatus = document.getElementById('uploadStatus');
+    const uploadSection = document.getElementById('uploadSection');
+    const questionInput = document.getElementById('questionInput');
+    const askBtn = document.getElementById('askBtn');
+    const chatHistory = document.getElementById('chatHistory');
+
+    const API_URL = 'http://127.0.0.1:8000';
+    let pdfUploaded = false;
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        fileName.textContent = file.name;
+        fileName.classList.add('selected');
+      } else {
+        fileName.textContent = 'Escolher arquivo PDF';
+        fileName.classList.remove('selected');
+      }
+    });
+
+    uploadSection.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadSection.classList.add('dragging');
+    });
+
+    uploadSection.addEventListener('dragleave', () => {
+      uploadSection.classList.remove('dragging');
+    });
+
+    uploadSection.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadSection.classList.remove('dragging');
+      const file = e.dataTransfer.files[0];
+      if (file && file.type === 'application/pdf') {
+        fileInput.files = e.dataTransfer.files;
+        fileName.textContent = file.name;
+        fileName.classList.add('selected');
+      }
+    });
+
+    uploadBtn.addEventListener('click', async () => {
+      const file = fileInput.files[0];
+      if (!file) {
+        showStatus('Escolha um arquivo PDF primeiro', 'error');
+        return;
+      }
+
+      console.log('=== INICIANDO UPLOAD ===');
+      uploadBtn.disabled = true;
+      uploadBtn.innerHTML = '<span class="loading"></span> Enviando...';
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const response = await fetch(API_URL + '/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        const result = await response.json();
+        
+        if (response.ok) {
+          showStatus('✓ PDF processado com sucesso!', 'success');
+          pdfUploaded = true;
+          questionInput.disabled = false;
+          askBtn.disabled = false;
+          chatHistory.innerHTML = '';
+        } else {
+          showStatus('Erro: ' + (result.error || 'Erro desconhecido'), 'error');
+        }
+      } catch (error) {
+        console.error('Erro:', error);
+        showStatus('Erro na conexão: ' + error.message, 'error');
+      } finally {
+        uploadBtn.disabled = false;
+        uploadBtn.innerHTML = '<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg> Upload';
+      }
+    });
+
+    function showStatus(message, type) {
+      uploadStatus.textContent = message;
+      uploadStatus.className = `status ${type}`;
+      setTimeout(() => {
+        uploadStatus.style.display = 'none';
+      }, 5000);
+    }
+
+    function addMessage(content, isUser) {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
+      
+      const contentDiv = document.createElement('div');
+      contentDiv.className = 'message-content';
+      
+      if (isUser) {
+        // Mensagem do usuário (texto simples)
+        contentDiv.textContent = content;
+      } else {
+        // Mensagem do bot (renderizar Markdown)
+        contentDiv.innerHTML = marked.parse(content);
+      }
+      
+      messageDiv.appendChild(contentDiv);
+      chatHistory.appendChild(messageDiv);
+      chatHistory.scrollTop = chatHistory.scrollHeight;
+    }
+
+    askBtn.addEventListener('click', askQuestion);
+    questionInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') askQuestion();
+    });
+
+    async function askQuestion() {
+      const question = questionInput.value.trim();
+      if (!question) return;
+
+      addMessage(question, true);
+      questionInput.value = '';
+      askBtn.disabled = true;
+      questionInput.disabled = true;
+
+      addMessage('Pensando...', false);
+
+      try {
+        const response = await fetch(API_URL + '/ask?q=' + encodeURIComponent(question));
+        const result = await response.json();
+        
+        chatHistory.removeChild(chatHistory.lastChild);
+        
+        if (response.ok && result.answer) {
+          addMessage(result.answer, false);
+        } else {
+          addMessage('Erro: ' + (result.error || 'Não foi possível obter resposta.'), false);
+        }
+      } catch (error) {
+        console.error('Erro:', error);
+        chatHistory.removeChild(chatHistory.lastChild);
+        addMessage('Erro na conexão: ' + error.message, false);
+      } finally {
+        askBtn.disabled = false;
+        questionInput.disabled = false;
+        questionInput.focus();
+      }
+    }
+  </script>
+</body>
+</html>
